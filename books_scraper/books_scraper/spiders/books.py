@@ -1,14 +1,6 @@
 import scrapy
 
-
-class BookItem(scrapy.Item):
-    title = scrapy.Field()
-    price = scrapy.Field()
-    amount_in_stock = scrapy.Field()
-    rating = scrapy.Field()
-    category = scrapy.Field()
-    description = scrapy.Field()
-    upc = scrapy.Field()
+from books_scraper.items import BooksScraperItem
 
 
 class BooksSpider(scrapy.Spider):
@@ -34,7 +26,7 @@ class BooksSpider(scrapy.Spider):
     def parse_book_details(self, response):
         """Parse detailed book information page."""
 
-        item = BookItem()
+        item = BooksScraperItem()
 
         item["title"] = response.css("div.product_main h1::text").get()
 
@@ -42,7 +34,7 @@ class BooksSpider(scrapy.Spider):
         item["price"] = price_text.replace("£", "") if price_text else None
 
         availability_text = response.css("p.availability::text").re_first(r"\d+")
-        item["amount_in_stock"] = int(availability_text) if availability_text else 0
+        item["amount_in_stock"] = availability_text
 
         rating_class = response.css("p.star-rating::attr(class)").get()
         item["rating"] = rating_class.split()[-1] if rating_class else None
@@ -56,8 +48,8 @@ class BooksSpider(scrapy.Spider):
         ).get()
         item["description"] = description
 
-        item["upc"] = response.css(
-            "table.table.table-striped tr:nth-child(1) td::text"
+        item["upc"] = response.xpath(
+            "//th[text()='UPC']/following-sibling::td/text()"
         ).get()
 
         yield item
