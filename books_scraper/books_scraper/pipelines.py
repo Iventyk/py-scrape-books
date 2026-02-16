@@ -6,9 +6,8 @@
 
 # useful for handling different item types with a single interface
 from itemadapter import ItemAdapter
-
-
-from itemadapter import ItemAdapter
+from scrapy.exceptions import DropItem
+import re
 
 
 class BooksScraperPipeline:
@@ -25,27 +24,49 @@ class BooksScraperPipeline:
     def process_item(self, item, spider):
         adapter = ItemAdapter(item)
 
-        # Normalize price to float
+        # --- Normalize price ---
         raw_price = adapter.get("price")
         if raw_price:
-            cleaned_price = raw_price.replace("£", "").strip()
-            adapter["price"] = float(cleaned_price)
+            cleaned_price = (
+                raw_price.replace("£", "")
+                .replace(",", "")
+                .strip()
+            )
+            if cleaned_price:
+                try:
+                    adapter["price"] = float(cleaned_price)
+                except ValueError:
+                    adapter["price"] = None
+            else:
+                adapter["price"] = None
+        else:
+            adapter["price"] = None
 
-        # Normalize amount_in_stock to int or None
+        # --- Normalize amount_in_stock ---
         raw_amount = adapter.get("amount_in_stock")
-        adapter["amount_in_stock"] = int(raw_amount) if raw_amount else None
+        if raw_amount:
+            match = re.search(r"\d+", str(raw_amount))
+            if match:
+                try:
+                    adapter["amount_in_stock"] = int(match.group())
+                except ValueError:
+                    adapter["amount_in_stock"] = None
+            else:
+                adapter["amount_in_stock"] = None
+        else:
+            adapter["amount_in_stock"] = None
 
-        # Normalize rating to int
+        # --- Normalize rating ---
         raw_rating = adapter.get("rating")
         adapter["rating"] = self.RATING_MAP.get(raw_rating)
 
-        # Strip description
+        # --- Strip description ---
         description = adapter.get("description")
         if description:
             adapter["description"] = description.strip()
 
-        # Ensure UPC exists
+        # --- Validate UPC ---
         if not adapter.get("upc"):
-            raise ValueError("UPC is missing")
+            raise DropItem("Missing UPC")
 
         return item

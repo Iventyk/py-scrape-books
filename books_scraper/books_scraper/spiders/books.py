@@ -31,7 +31,7 @@ class BooksSpider(scrapy.Spider):
         item["title"] = response.css("div.product_main h1::text").get()
 
         price_text = response.css("p.price_color::text").get()
-        item["price"] = price_text.replace("£", "") if price_text else None
+        item["price"] = response.css("p.price_color::text").get()
 
         availability_text = response.css("p.availability::text").re_first(r"\d+")
         item["amount_in_stock"] = availability_text
